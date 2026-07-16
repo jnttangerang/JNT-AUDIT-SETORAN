@@ -1,0 +1,6 @@
+{
+  "name": "Audit Setoran J&T Express",
+  "description": "Aplikasi Audit Setoran Harian J&T Express Terintegrasi Google Spreadsheet dan Apps Script.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
