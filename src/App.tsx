@@ -254,8 +254,8 @@ export default function App() {
     if (cleanedUrl) {
       let deploymentId = "";
 
-      // Check if it is a full Apps Script URL containing /macros/s/
-      const macrosMatch = cleanedUrl.match(/macros\/s\/([^\/\?]+)/);
+      // Check if it is a full Apps Script URL containing /s/ (works for both consumer and Workspace URLs)
+      const macrosMatch = cleanedUrl.match(/\/s\/([^\/\?]+)/);
       if (macrosMatch) {
         deploymentId = macrosMatch[1].trim();
       } else {

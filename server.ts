@@ -25,8 +25,8 @@ async function startServer() {
       let targetBaseUrl = url.trim();
       let deploymentId = "";
 
-      // Check if it is a full Apps Script URL containing /macros/s/
-      const macrosMatch = targetBaseUrl.match(/macros\/s\/([^\/\?]+)/);
+      // Check if it is a full Apps Script URL containing /s/ (works for both consumer and Workspace URLs)
+      const macrosMatch = targetBaseUrl.match(/\/s\/([^\/\?]+)/);
       if (macrosMatch) {
         deploymentId = macrosMatch[1].trim();
       } else {
@@ -74,7 +74,7 @@ async function startServer() {
         if (response.status === 404) {
           helpfulMessage = "Google Apps Script mengembalikan status 404 (Not Found). Ini biasanya terjadi jika ID Deployment Web App salah, deployment belum dipublikasikan, atau URL yang Anda masukkan tidak valid.";
         }
-        return res.status(response.status).json({
+        return res.status(400).json({
           status: "error",
           message: helpfulMessage
         });
@@ -141,7 +141,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error("[Proxy] Error fetching from Apps Script:", error);
-      return res.status(500).json({
+      return res.status(400).json({
         status: "error",
         message: `Gagal menghubungi Google Apps Script: ${error.message}`
       });
