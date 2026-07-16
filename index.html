@@ -1,13 +1,289 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Setoran J&T Express</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="max-w-md mx-auto bg-white min-h-screen shadow-md flex flex-col pb-12">
+    <!-- Header -->
+    <header class="bg-red-600 text-white p-4 sticky top-0 z-10 shadow-sm">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="font-bold text-lg tracking-tight">J&T Audit Setoran</h1>
+          <p class="text-xs text-red-100">Database: Google Spreadsheet</p>
+        </div>
+        <div class="bg-red-700 text-xs px-2 py-1 rounded-full font-mono font-medium">v1.0</div>
+      </div>
+    </header>
 
+    <!-- Main Content -->
+    <main class="p-4 flex-1">
+      <!-- Date Picker -->
+      <div class="mb-4 bg-slate-100 p-3 rounded-xl flex items-center justify-between">
+        <label for="audit-date" class="text-xs font-semibold uppercase text-slate-500">Pilih Tanggal</label>
+        <input type="date" id="audit-date" value="2026-07-15" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm font-medium focus:ring-2 focus:ring-red-500 focus:outline-none">
+      </div>
+
+      <!-- Financial Metrics Deck -->
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">Setoran Tunai (Ongkir)</p>
+          <p id="txt-setoran" class="text-lg font-bold text-slate-900">Rp 0</p>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">Kas Operasional</p>
+          <p id="txt-operasional" class="text-lg font-bold text-slate-900">Rp 0</p>
+          <p id="txt-operasional-detail" class="text-[10px] text-slate-400">Amplop + Packing</p>
+        </div>
+      </div>
+
+      <!-- Audit Badge Alert -->
+      <div id="audit-alert" class="p-3 rounded-xl mb-5 flex items-start gap-3 bg-emerald-50 text-emerald-800 border border-emerald-100">
+        <div class="mt-0.5" id="alert-icon">✅</div>
+        <div>
+          <p id="alert-title" class="font-bold text-sm">Semua Resi Aman</p>
+          <p id="alert-desc" class="text-xs text-slate-600">Admin sudah menginput seluruh resi wajib hari ini.</p>
+        </div>
+      </div>
+
+      <!-- Core Audit Workspace -->
+      <div class="mb-4 flex border-b border-slate-200">
+        <button id="tab-btn-audit" class="flex-1 py-2 font-semibold text-sm border-b-2 border-red-600 text-red-600 focus:outline-none">Audit Resi</button>
+        <button id="tab-btn-missing" class="flex-1 py-2 font-semibold text-sm border-b-2 border-transparent text-slate-500 focus:outline-none">Daftar Selisih</button>
+      </div>
+
+      <!-- Loader -->
+      <div id="loader" class="hidden text-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+        <p class="text-xs text-slate-400">Mengunduh data spreadsheet...</p>
+      </div>
+
+      <!-- Tab Content: Audit -->
+      <div id="tab-audit" class="space-y-3">
+        <div class="flex justify-between items-center text-xs text-slate-400 font-semibold uppercase mb-1">
+          <span>Resi Wajib Input YoYi</span>
+          <span id="txt-match-ratio">0 / 0</span>
+        </div>
+        <div id="audit-list" class="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+          <!-- Dinamis dari JS -->
+        </div>
+      </div>
+
+      <!-- Tab Content: Missing -->
+      <div id="tab-missing" class="hidden space-y-2">
+        <div class="text-xs text-slate-400 font-semibold uppercase mb-1">Daftar Resi YoYi Belum Diinput Admin</div>
+        <div id="missing-list" class="space-y-2">
+          <!-- Dinamis dari JS -->
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer / Credit -->
+    <footer class="text-center text-[10px] text-slate-400 mt-auto py-4 border-t border-slate-100">
+      J&T Express Audit Setoran App &bull; Powered by Apps Script API
+    </footer>
+  </div>
+
+  <script>
+    // MASUKKAN URL DEPLOYMENT WEB APP APPS SCRIPT ANDA DI SINI
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQEC46458RzTUa6fobIXRMpKLgm9bXql_J-cJSbj47lHld8ZZVSQV7mw-w3r5rJrxaCQ/exec";
+
+    // Elements
+    const dateInput = document.getElementById('audit-date');
+    const txtSetoran = document.getElementById('txt-setoran');
+    const txtOperasional = document.getElementById('txt-operasional');
+    const txtOperasionalDetail = document.getElementById('txt-operasional-detail');
+    const auditAlert = document.getElementById('audit-alert');
+    const alertIcon = document.getElementById('alert-icon');
+    const alertTitle = document.getElementById('alert-title');
+    const alertDesc = document.getElementById('alert-desc');
+    const auditList = document.getElementById('audit-list');
+    const missingList = document.getElementById('missing-list');
+    const txtMatchRatio = document.getElementById('txt-match-ratio');
+    const loader = document.getElementById('loader');
+    
+    const tabAudit = document.getElementById('tab-audit');
+    const tabMissing = document.getElementById('tab-missing');
+    const btnTabAudit = document.getElementById('tab-btn-audit');
+    const btnTabMissing = document.getElementById('tab-btn-missing');
+
+    // Tab Switchers
+    btnTabAudit.addEventListener('click', () => {
+      btnTabAudit.className = "flex-1 py-2 font-semibold text-sm border-b-2 border-red-600 text-red-600 focus:outline-none";
+      btnTabMissing.className = "flex-1 py-2 font-semibold text-sm border-b-2 border-transparent text-slate-500 focus:outline-none";
+      tabAudit.classList.remove('hidden');
+      tabMissing.classList.add('hidden');
+    });
+
+    btnTabMissing.addEventListener('click', () => {
+      btnTabMissing.className = "flex-1 py-2 font-semibold text-sm border-b-2 border-red-600 text-red-600 focus:outline-none";
+      btnTabAudit.className = "flex-1 py-2 font-semibold text-sm border-b-2 border-transparent text-slate-500 focus:outline-none";
+      tabMissing.classList.remove('hidden');
+      tabAudit.classList.add('hidden');
+    });
+
+    dateInput.addEventListener('change', fetchData);
+
+    async function fetchData() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_APPS_SCRIPT")) {
+        alert("Harap atur URL Apps Script (APPS_SCRIPT_URL) Anda di baris 112 file HTML ini.");
+        return;
+      }
+
+      loader.classList.remove('hidden');
+      tabAudit.classList.add('hidden');
+      tabMissing.classList.add('hidden');
+
+      const dateVal = dateInput.value;
+      try {
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getData&date=${dateVal}`);
+        const res = await response.json();
+        
+        if (res.status === 'success') {
+          processAudit(res.resiHarian, res.detailSerahTerima);
+        } else {
+          alert("Gagal: " + res.message);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Gagal koneksi ke server Apps Script: " + e.toString());
+      } finally {
+        loader.classList.add('hidden');
+        if (btnTabAudit.classList.contains('border-red-600')) {
+          tabAudit.classList.remove('hidden');
+        } else {
+          tabMissing.classList.remove('hidden');
+        }
+      }
+    }
+
+    function formatRupiah(num) {
+      return "Rp " + Number(num).toLocaleString('id-ID');
+    }
+
+    function processAudit(harian, yoyi) {
+      // Filter wajib input YoYi: Metode Perhitungan = "Biaya oleh pengirim"
+      const wajibYoyi = yoyi.filter(y => y.metodePerhitungan.trim().toLowerCase() === 'biaya oleh pengirim');
+      
+      // Map admin inputs
+      const adminMap = new Map();
+      harian.forEach(item => {
+        if (item.noResi) adminMap.set(item.noResi.trim().toUpperCase(), item);
+      });
+
+      // Audit matching
+      const matches = [];
+      const missing = [];
+      
+      wajibYoyi.forEach(y => {
+        const resiId = y.noResi.trim().toUpperCase();
+        const found = adminMap.get(resiId);
+        if (found) {
+          matches.push({ y, found, status: 'MATCH' });
+        } else {
+          missing.push(y);
+        }
+      });
+
+      // Financial calculations
+      let setoranTunai = 0;
+      let amplop = 0;
+      let packing = 0;
+
+      harian.forEach(h => {
+        if (h.metodeBayarOngkir.trim().toLowerCase() === 'tunai') {
+          setoranTunai += (h.ongkirFinal || h.ongkirDasar || 0);
+        }
+        amplop += (h.amplop || 0);
+        packing += (h.packing || 0);
+      });
+
+      // Update UI
+      txtSetoran.textContent = formatRupiah(setoranTunai);
+      txtOperasional.textContent = formatRupiah(amplop + packing);
+      txtOperasionalDetail.textContent = `Amplop: ${formatRupiah(amplop)} | Packing: ${formatRupiah(packing)}`;
+      txtMatchRatio.textContent = `${matches.length} / ${wajibYoyi.length}`;
+
+      // Update Alert Banner
+      if (missing.length > 0) {
+        auditAlert.className = "p-3 rounded-xl mb-5 flex items-start gap-3 bg-amber-50 text-amber-800 border border-amber-100";
+        alertIcon.textContent = "⚠️";
+        alertTitle.textContent = `Ada ${missing.length} Resi Selisih!`;
+        alertDesc.textContent = "Owner wajib meminta pertanggungjawaban admin untuk input resi di YoYi.";
+      } else {
+        auditAlert.className = "p-3 rounded-xl mb-5 flex items-start gap-3 bg-emerald-50 text-emerald-800 border border-emerald-100";
+        alertIcon.textContent = "✅";
+        alertTitle.textContent = "Audit Setoran Bersih";
+        alertDesc.textContent = "Semua resi wajib YoYi hari ini telah terinput di Resi Harian admin.";
+      }
+
+      // Render lists
+      renderAuditLists(matches, missing);
+    }
+
+    function renderAuditLists(matches, missing) {
+      auditList.innerHTML = '';
+      missingList.innerHTML = '';
+
+      if (matches.length === 0 && missing.length === 0) {
+        auditList.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">Tidak ada data transaksi hari ini.</p>';
+        missingList.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">Tidak ada data selisih hari ini.</p>';
+        return;
+      }
+
+      // Populate Audit List (Matches + Missing warning in-line)
+      missing.forEach(y => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = "bg-red-50 border border-red-100 p-3 rounded-xl text-xs flex justify-between items-center";
+        itemDiv.innerHTML = `
+          <div>
+            <p class="font-bold text-red-700 text-sm font-mono">${y.noResi}</p>
+            <p class="text-slate-400 text-[10px] mt-0.5">${y.waktuPemesanan}</p>
+          </div>
+          <span class="bg-red-200 text-red-800 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase">Belum Diinput</span>
+        `;
+        auditList.appendChild(itemDiv);
+
+        // Also copy to missing list tab
+        const clone = itemDiv.cloneNode(true);
+        missingList.appendChild(clone);
+      });
+
+      matches.forEach(m => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = "bg-white border border-slate-200 p-3 rounded-xl text-xs flex justify-between items-center shadow-sm";
+        const bayarColor = m.found.metodeBayarOngkir.toLowerCase() === 'tunai' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800';
+        itemDiv.innerHTML = `
+          <div>
+            <p class="font-bold text-slate-800 text-sm font-mono">${m.found.noResi}</p>
+            <p class="text-slate-400 text-[10px] mt-0.5">Admin: ${m.found.admin} | ${m.found.namaBarang || 'Tanpa Nama'}</p>
+          </div>
+          <div class="text-right">
+            <p class="font-semibold text-slate-900">${formatRupiah(m.found.ongkirFinal || m.found.ongkirDasar)}</p>
+            <span class="${bayarColor} px-2 py-0.5 rounded-full text-[9px] font-bold uppercase">${m.found.metodeBayarOngkir}</span>
+          </div>
+        `;
+        auditList.appendChild(itemDiv);
+      });
+
+      if (missing.length === 0) {
+        missingList.innerHTML = `
+          <div class="text-center py-12 text-slate-400">
+            <div class="text-3xl mb-1">🎉</div>
+            <p class="text-xs font-semibold text-slate-500">Semua Terinput Sempurna</p>
+            <p class="text-[10px]">Tidak ditemukan selisih di YoYi hari ini.</p>
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
