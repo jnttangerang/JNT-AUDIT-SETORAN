@@ -21,8 +21,27 @@ async function startServer() {
     }
 
     try {
+      // Robust Google Apps Script Web App URL normalization
+      let targetBaseUrl = url.trim();
+      // Remove trailing slashes and query parameters if any
+      targetBaseUrl = targetBaseUrl.replace(/\/+$/, "");
+      
+      if (targetBaseUrl.includes("script.google.com/macros/s/")) {
+        // If they copied the editor URL ending with /edit, convert to /exec
+        if (targetBaseUrl.endsWith("/edit")) {
+          targetBaseUrl = targetBaseUrl.substring(0, targetBaseUrl.length - 5) + "/exec";
+        } else if (targetBaseUrl.includes("/edit?")) {
+          targetBaseUrl = targetBaseUrl.split("/edit?")[0] + "/exec";
+        }
+        
+        // Ensure it ends with /exec (or /dev for script development)
+        if (!targetBaseUrl.endsWith("/exec") && !targetBaseUrl.endsWith("/dev")) {
+          targetBaseUrl += "/exec";
+        }
+      }
+
       // Build the target Apps Script URL
-      let targetUrl = `${url}?action=getData&date=${date}`;
+      let targetUrl = `${targetBaseUrl}?action=getData&date=${date}`;
       if (spreadsheetId && typeof spreadsheetId === "string" && spreadsheetId.trim() !== "") {
         targetUrl += `&spreadsheetId=${encodeURIComponent(spreadsheetId.trim())}`;
       }
@@ -32,9 +51,14 @@ async function startServer() {
       const response = await fetch(targetUrl);
       
       if (!response.ok) {
+        // If the upstream returned a 404, we provide a super detailed explanation
+        let helpfulMessage = `Google Apps Script returned HTTP status ${response.status}`;
+        if (response.status === 404) {
+          helpfulMessage = "Google Apps Script mengembalikan status 404 (Not Found). Ini biasanya terjadi jika ID Deployment Web App salah, deployment belum dipublikasikan, atau URL yang Anda masukkan tidak valid.";
+        }
         return res.status(response.status).json({
           status: "error",
-          message: `Google Apps Script returned HTTP status ${response.status}`
+          message: helpfulMessage
         });
       }
 

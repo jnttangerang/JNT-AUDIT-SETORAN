@@ -248,6 +248,43 @@ export default function App() {
     setTimeout(() => setCopiedText(null), 2000);
   };
 
+  const handleSaveSettings = () => {
+    // Sanitize Apps Script URL
+    let cleanedUrl = settings.appsScriptUrl.trim();
+    if (cleanedUrl) {
+      cleanedUrl = cleanedUrl.replace(/\/+$/, ""); // remove trailing slash
+      if (cleanedUrl.includes("script.google.com/macros/s/")) {
+        // If they copied the script editor URL ending with /edit, convert to /exec
+        if (cleanedUrl.endsWith("/edit")) {
+          cleanedUrl = cleanedUrl.substring(0, cleanedUrl.length - 5) + "/exec";
+        } else if (cleanedUrl.includes("/edit?")) {
+          cleanedUrl = cleanedUrl.split("/edit?")[0] + "/exec";
+        }
+        
+        // Ensure it ends with /exec (or /dev for script development)
+        if (!cleanedUrl.endsWith("/exec") && !cleanedUrl.endsWith("/dev")) {
+          cleanedUrl += "/exec";
+        }
+      }
+    }
+
+    // Sanitize Spreadsheet ID
+    let cleanedSpreadsheetId = settings.spreadsheetId.trim();
+    if (cleanedSpreadsheetId === '1A2B3C4D5E6F7G8H9I0J...') {
+      cleanedSpreadsheetId = '';
+    }
+
+    setSettings(prev => ({
+      ...prev,
+      appsScriptUrl: cleanedUrl,
+      spreadsheetId: cleanedSpreadsheetId,
+      useMockData: false // Auto switch to live data mode
+    }));
+
+    setShowSettings(false);
+    setSuccessMsg('Konfigurasi disimpan! URL Google Apps Script otomatis disesuaikan ke format Web App (/exec) dan mode beralih ke Live Google Sheet.');
+  };
+
   // Google Apps Script source code generator (Code.gs)
   const getAppsScriptCode = () => {
     return `/**
@@ -871,7 +908,7 @@ function createJsonResponse(data) {
 
                   <div className="pt-2">
                     <button 
-                      onClick={() => setShowSettings(false)}
+                      onClick={handleSaveSettings}
                       className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-2xl text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-slate-900/10 font-display"
                     >
                       <CheckCircle2 size={14} className="text-emerald-400" />
