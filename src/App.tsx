@@ -316,6 +316,14 @@ export default function App() {
  */
 
 function doGet(e) {
+  // Jika dijalankan langsung dari tombol "Run" di editor Apps Script, parameter e akan undefined
+  if (!e || !e.parameter) {
+    return createJsonResponse({ 
+      status: "success", 
+      message: "Koneksi Otorisasi Berhasil! Anda berhasil menjalankan fungsi doGet dari dalam Editor Apps Script secara manual. Izin akses file Spreadsheet Anda telah disetujui. Untuk melihat integrasi real-time penuh, silakan salin URL Web App (/exec) dari tombol Deploy Anda dan masukkan ke Pengaturan Aplikasi Web." 
+    });
+  }
+
   const action = e.parameter.action;
   const dateStr = e.parameter.date; // Format YYYY-MM-DD dari Web App
 
@@ -448,8 +456,6 @@ function parseNumeric(val) {
 function createJsonResponse(data) {
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
-  // Bypass CORS
-  output.addHeader("Access-Control-Allow-Origin", "*");
   return output;
 }`;
   };
@@ -1204,7 +1210,7 @@ function createJsonResponse(data) {
                               }
 
                               return (
-                                <tr key={index} className={`hover:bg-slate-50/50 transition-colors ${isMissing ? 'bg-rose-50/20' : ''}`}>
+                                <tr key={`audit-row-${item.noResi}-${index}`} className={`hover:bg-slate-50/50 transition-colors ${isMissing ? 'bg-rose-50/20' : ''}`}>
                                   <td className="py-3.5 px-3 font-mono font-bold text-slate-800 text-sm tracking-tight">{item.noResi}</td>
                                   <td className="py-3.5 px-3">{statusBadge}</td>
                                   <td className="py-3.5 px-3 text-slate-400 font-mono text-[11px]">{item.waktuPemesanan}</td>
@@ -1276,7 +1282,7 @@ function createJsonResponse(data) {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {resiHarian.map((item, index) => (
-                            <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                            <tr key={`admin-row-${item.noResi || ''}-${index}`} className="hover:bg-slate-50/50 transition-colors">
                               <td className="py-3.5 px-3 text-slate-400 font-mono">{item.no}</td>
                               <td className="py-3.5 px-3 font-bold text-slate-800 font-display text-[13px]">{item.admin || '-'}</td>
                               <td className="py-3.5 px-3 font-mono font-bold text-slate-900 tracking-tight text-sm">{item.noResi}</td>
@@ -1337,7 +1343,7 @@ function createJsonResponse(data) {
                           {detailSerahTerima.map((item, index) => {
                             const isWajib = item.metodePerhitungan.trim().toLowerCase() === 'biaya oleh pengirim';
                             return (
-                              <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                              <tr key={`yoyi-row-${item.noResi || ''}-${index}`} className="hover:bg-slate-50/50 transition-colors">
                                 <td className="py-3.5 px-3 font-mono font-bold text-slate-800 tracking-tight text-sm">{item.noResi}</td>
                                 <td className="py-3.5 px-3 text-slate-500 font-mono text-[11px]">{item.waktuPemesanan}</td>
                                 <td className="py-3.5 px-3 font-bold text-slate-700 font-display">{item.metodePerhitungan}</td>
@@ -1402,6 +1408,7 @@ function createJsonResponse(data) {
                         <li>Buka menu <b className="text-slate-800">Extensions &gt; Apps Script</b> di Spreadsheet Anda.</li>
                         <li>Hapus seluruh kode default di file, lalu tempelkan kode <b className="text-slate-800">Code.gs</b> di bawah.</li>
                         <li>Klik ikon simpan 💾.</li>
+                        <li className="text-amber-600 bg-amber-50 px-2 py-1.5 rounded-xl border border-amber-100 leading-relaxed font-bold"><b className="text-amber-800 uppercase">PENTING:</b> Klik tombol <b className="text-amber-800">Run</b> (Jalankan) sekali di editor atas. Jika diminta, klik <b className="text-amber-800">"Review Permissions"</b>, pilih akun Google Anda, klik <b className="text-amber-800">"Advanced"</b>, lalu <b className="text-amber-800">"Go to Untitled project (unsafe)"</b> dan pilih <b className="text-amber-800">"Allow"</b>. Ini wajib dilakukan agar script diizinkan mengakses data Spreadsheet Anda!</li>
                         <li>Klik tombol <b className="text-slate-800">Deploy &gt; New Deployment</b>.</li>
                         <li>Pilih jenis deployment: <b className="text-slate-800">Web App</b>.</li>
                         <li>Ubah "Who has access" menjadi <b className="text-slate-900 underline">Anyone</b>.</li>

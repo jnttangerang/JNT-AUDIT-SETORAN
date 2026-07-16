@@ -95,6 +95,44 @@ async function startServer() {
             message: "Apps Script memerlukan login Google. Pastikan pilihan 'Who has access' diatur ke 'Anyone' saat men-deploy Web App."
           });
         }
+
+        // Try to extract the error message from the standard Google Apps Script error page layout
+        let extractedError = "";
+        const classMatch = text.match(/class=["']?errorMessage["']?/i);
+        if (classMatch && classMatch.index !== undefined) {
+          const classIndex = classMatch.index;
+          const tagCloseIndex = text.indexOf('>', classIndex);
+          if (tagCloseIndex !== -1) {
+            const nextTagOpen = text.indexOf('<', tagCloseIndex);
+            if (nextTagOpen !== -1) {
+              extractedError = text.substring(tagCloseIndex + 1, nextTagOpen).trim().replace(/<[^>]+>/g, "");
+            }
+          }
+        }
+        
+        if (!extractedError) {
+          const errorMatch = text.match(/class="errorMessage"[^>]*>([\s\S]*?)<\/div>/i) || 
+                             text.match(/class="errorMessage">([\s\S]*?)<\/td>/i) ||
+                             text.match(/<div[^>]*class="errorMessage"[^>]*>([\s\S]*?)<\/div>/i);
+          if (errorMatch && errorMatch[1]) {
+            extractedError = errorMatch[1].trim().replace(/<[^>]+>/g, ""); // strip any nested tags
+          }
+        }
+
+        if (!extractedError) {
+          if (text.includes("Authorization is required to perform that action")) {
+            extractedError = "Authorization is required to perform that action. (Otorisasi Diperlukan: Buka Apps Script editor, klik tombol 'Run' sekali untuk memberikan izin akses ke Spreadsheet Anda).";
+          } else if (text.includes("Script function not found")) {
+            extractedError = "Script function not found: doGet. (Fungsi doGet tidak ditemukan di Apps Script Anda).";
+          }
+        }
+
+        if (extractedError) {
+          return res.status(400).json({
+            status: "error",
+            message: `Error dari Google Apps Script: "${extractedError}". Silakan ikuti instruksi 'Setup Integrasi Sheets' di tab bantuan bawah untuk memberikan izin otorisasi script.`
+          });
+        }
         
         return res.status(400).json({
           status: "error",

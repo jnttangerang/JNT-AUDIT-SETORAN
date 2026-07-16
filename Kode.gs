@@ -7,6 +7,14 @@
  */
 
 function doGet(e) {
+  // Jika dijalankan langsung dari tombol "Run" di editor Apps Script, parameter e akan undefined
+  if (!e || !e.parameter) {
+    return createJsonResponse({ 
+      status: "success", 
+      message: "Koneksi Otorisasi Berhasil! Anda berhasil menjalankan fungsi doGet dari dalam Editor Apps Script secara manual. Izin akses file Spreadsheet Anda telah disetujui. Untuk melihat integrasi real-time penuh, silakan salin URL Web App (/exec) dari tombol Deploy Anda dan masukkan ke Pengaturan Aplikasi Web." 
+    });
+  }
+
   // Ambil parameter
   const action = e.parameter.action;
   const dateStr = e.parameter.date; // Format YYYY-MM-DD dari Web App
@@ -192,6 +200,5 @@ function parseNumeric(val) {
 function createJsonResponse(data) {
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
-  output.addHeader("Access-Control-Allow-Origin", "*");
   return output;
 }
