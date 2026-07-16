@@ -21,35 +21,41 @@ async function startServer() {
     }
 
     try {
-      // Robust Google Apps Script Web App URL normalization
+      // Robust Google Apps Script Web App URL normalization and ID correction
       let targetBaseUrl = url.trim();
-      
-      // If the user pasted just the Deployment ID (e.g. starting with AKfy...) or a path without the full origin
-      if (!targetBaseUrl.startsWith("http://") && !targetBaseUrl.startsWith("https://")) {
-        const cleanId = targetBaseUrl.replace(/\/exec$/, "").replace(/\/dev$/, "").trim();
-        // Apps Script deployment IDs are long alphanumeric strings usually starting with "AKfy"
-        if (cleanId.startsWith("AKfy") || cleanId.length > 30) {
-          targetBaseUrl = `https://script.google.com/macros/s/${cleanId}/exec`;
-        } else if (targetBaseUrl.includes("script.google.com")) {
-          targetBaseUrl = "https://" + targetBaseUrl;
+      let deploymentId = "";
+
+      // Check if it is a full Apps Script URL containing /macros/s/
+      const macrosMatch = targetBaseUrl.match(/macros\/s\/([^\/\?]+)/);
+      if (macrosMatch) {
+        deploymentId = macrosMatch[1].trim();
+      } else {
+        // Otherwise, assume they provided the raw Deployment ID or ID with /exec or /dev at the end
+        deploymentId = targetBaseUrl.replace(/\/+$/, "").replace(/\/exec$/, "").replace(/\/dev$/, "").trim();
+        // If it still contains slashes, grab the last portion
+        if (deploymentId.includes("/")) {
+          const parts = deploymentId.split("/");
+          deploymentId = parts[parts.length - 1];
         }
       }
 
-      // Remove trailing slashes and query parameters if any
-      targetBaseUrl = targetBaseUrl.replace(/\/+$/, "");
-      
-      if (targetBaseUrl.includes("script.google.com/macros/s/")) {
-        // If they copied the editor URL ending with /edit, convert to /exec
-        if (targetBaseUrl.endsWith("/edit")) {
-          targetBaseUrl = targetBaseUrl.substring(0, targetBaseUrl.length - 5) + "/exec";
-        } else if (targetBaseUrl.includes("/edit?")) {
-          targetBaseUrl = targetBaseUrl.split("/edit?")[0] + "/exec";
+      // Automatically correct common copy-paste errors (like missing 'AKf' or 'AKfy' prefix)
+      if (deploymentId && !deploymentId.startsWith("AKfy")) {
+        if (deploymentId.startsWith("ycb")) {
+          // User missed the "AKf" prefix when copying
+          deploymentId = "AKf" + deploymentId;
+        } else if (deploymentId.startsWith("cb")) {
+          // User missed the "AKfy" prefix when copying
+          deploymentId = "AKfy" + deploymentId;
+        } else if (deploymentId.length > 25) {
+          // Prepend "AKfy" for other long IDs that don't have it
+          deploymentId = "AKfy" + deploymentId;
         }
-        
-        // Ensure it ends with /exec (or /dev for script development)
-        if (!targetBaseUrl.endsWith("/exec") && !targetBaseUrl.endsWith("/dev")) {
-          targetBaseUrl += "/exec";
-        }
+      }
+
+      // Reconstruct the perfect Google Apps Script Web App URL
+      if (deploymentId) {
+        targetBaseUrl = `https://script.google.com/macros/s/${deploymentId}/exec`;
       }
 
       // Build the target Apps Script URL
