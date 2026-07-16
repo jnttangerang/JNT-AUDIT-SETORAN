@@ -252,6 +252,16 @@ export default function App() {
     // Sanitize Apps Script URL
     let cleanedUrl = settings.appsScriptUrl.trim();
     if (cleanedUrl) {
+      // If they pasted just the Deployment ID (e.g. starting with "AKfy") or an incomplete path
+      if (!cleanedUrl.startsWith("http://") && !cleanedUrl.startsWith("https://")) {
+        const cleanId = cleanedUrl.replace(/\/exec$/, "").replace(/\/dev$/, "").trim();
+        if (cleanId.startsWith("AKfy") || cleanId.length > 30) {
+          cleanedUrl = `https://script.google.com/macros/s/${cleanId}/exec`;
+        } else if (cleanedUrl.includes("script.google.com")) {
+          cleanedUrl = "https://" + cleanedUrl;
+        }
+      }
+
       cleanedUrl = cleanedUrl.replace(/\/+$/, ""); // remove trailing slash
       if (cleanedUrl.includes("script.google.com/macros/s/")) {
         // If they copied the script editor URL ending with /edit, convert to /exec

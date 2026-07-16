@@ -23,6 +23,18 @@ async function startServer() {
     try {
       // Robust Google Apps Script Web App URL normalization
       let targetBaseUrl = url.trim();
+      
+      // If the user pasted just the Deployment ID (e.g. starting with AKfy...) or a path without the full origin
+      if (!targetBaseUrl.startsWith("http://") && !targetBaseUrl.startsWith("https://")) {
+        const cleanId = targetBaseUrl.replace(/\/exec$/, "").replace(/\/dev$/, "").trim();
+        // Apps Script deployment IDs are long alphanumeric strings usually starting with "AKfy"
+        if (cleanId.startsWith("AKfy") || cleanId.length > 30) {
+          targetBaseUrl = `https://script.google.com/macros/s/${cleanId}/exec`;
+        } else if (targetBaseUrl.includes("script.google.com")) {
+          targetBaseUrl = "https://" + targetBaseUrl;
+        }
+      }
+
       // Remove trailing slashes and query parameters if any
       targetBaseUrl = targetBaseUrl.replace(/\/+$/, "");
       
