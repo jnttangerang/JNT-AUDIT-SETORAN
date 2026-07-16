@@ -113,7 +113,7 @@ export default function App() {
 
     // Attempt real fetch from Google Apps Script Web App (proxied through our backend to bypass CORS and iframe redirect blocks)
     try {
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(settings.appsScriptUrl)}&date=${selectedDate}`;
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(settings.appsScriptUrl)}&date=${selectedDate}&spreadsheetId=${encodeURIComponent(settings.spreadsheetId)}`;
       const response = await fetch(proxyUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

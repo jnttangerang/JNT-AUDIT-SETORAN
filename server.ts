@@ -10,7 +10,7 @@ async function startServer() {
 
   // API Route to proxy the Google Apps Script Web App
   app.get("/api/proxy", async (req, res) => {
-    const { url, date } = req.query;
+    const { url, date, spreadsheetId } = req.query;
 
     if (!url || typeof url !== "string") {
       return res.status(400).json({ status: "error", message: "Parameter 'url' diperlukan." });
@@ -22,7 +22,10 @@ async function startServer() {
 
     try {
       // Build the target Apps Script URL
-      const targetUrl = `${url}?action=getData&date=${date}`;
+      let targetUrl = `${url}?action=getData&date=${date}`;
+      if (spreadsheetId && typeof spreadsheetId === "string" && spreadsheetId.trim() !== "") {
+        targetUrl += `&spreadsheetId=${encodeURIComponent(spreadsheetId.trim())}`;
+      }
       console.log(`[Proxy] Fetching from Apps Script: ${targetUrl}`);
 
       // We do a standard server-to-server fetch

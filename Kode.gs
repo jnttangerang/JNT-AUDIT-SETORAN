@@ -7,19 +7,53 @@
  */
 
 function doGet(e) {
+  // Ambil parameter
   const action = e.parameter.action;
   const dateStr = e.parameter.date; // Format YYYY-MM-DD dari Web App
+  const spreadsheetId = e.parameter.spreadsheetId; // ID Spreadsheet opsional
 
   if (!dateStr) {
-    return createJsonResponse({ status: "error", message: "Parameter 'date' diperlukan." });
+    return createJsonResponse({ 
+      status: "error", 
+      message: "Parameter 'date' diperlukan." 
+    });
   }
 
   // Konversi format tanggal YYYY-MM-DD ke DD-MM-YYYY untuk lookup Spreadsheet
   const formattedDate = convertDateFormat(dateStr);
 
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    
+    let ss = null;
+
+    // 1. Coba buka dengan Spreadsheet ID jika disediakan
+    if (spreadsheetId && spreadsheetId.trim() !== "") {
+      try {
+        ss = SpreadsheetApp.openById(spreadsheetId.trim());
+      } catch (err) {
+        return createJsonResponse({
+          status: "error",
+          message: "Gagal membuka Spreadsheet dengan ID yang Anda masukkan. Pastikan ID benar dan Apps Script ini dijalankan dengan izin akun Anda. Detail error: " + err.toString()
+        });
+      }
+    }
+
+    // 2. Jika tidak ada ID atau gagal, coba getActiveSpreadsheet (khusus jika container-bound script)
+    if (!ss) {
+      try {
+        ss = SpreadsheetApp.getActiveSpreadsheet();
+      } catch (err) {
+        // Abaikan error di sini, akan divalidasi di bawah
+      }
+    }
+
+    // 3. Validasi apakah Spreadsheet berhasil diakses
+    if (!ss) {
+      return createJsonResponse({ 
+        status: "error", 
+        message: "Spreadsheet tidak terdeteksi. Solusi: Masukkan ID Google Spreadsheet Anda di panel Pengaturan aplikasi, atau pastikan script ini terpasang di menu 'Extensions > Apps Script' pada spreadsheet bersangkutan." 
+      });
+    }
+
     if (action === "getData") {
       const resiHarian = getResiHarianData(ss, formattedDate);
       const detailSerahTerima = getDetailSerahTerimaData(ss, formattedDate);
@@ -28,14 +62,21 @@ function doGet(e) {
         status: "success",
         date: dateStr,
         formattedDate: formattedDate,
+        spreadsheetName: ss.getName(),
         resiHarian: resiHarian,
         detailSerahTerima: detailSerahTerima
       });
     }
     
-    return createJsonResponse({ status: "error", message: "Action tidak dikenal." });
+    return createJsonResponse({ 
+      status: "error", 
+      message: "Action '" + action + "' tidak dikenal." 
+    });
   } catch (error) {
-    return createJsonResponse({ status: "error", message: error.toString() });
+    return createJsonResponse({ 
+      status: "error", 
+      message: "Terjadi kesalahan internal pada Apps Script: " + error.toString() 
+    });
   }
 }
 
@@ -48,88 +89,100 @@ function convertDateFormat(dateStr) {
 
 // Mengambil Data dari Sheet "Resi Harian" untuk tanggal tertentu
 function getResiHarianData(ss, targetDate) {
-  const sheet = ss.getSheetByName("Resi Harian");
-  if (!sheet) return [];
-  
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 5) return []; // Skip Header J&T Pasir Jaha
-  
-  const results = [];
-  
-  // Baris header aktual ada di baris 4 (Index 3)
-  // Tanggal(A), Admin(B), No(C), Tipe Produk(D), No. Resi(E), Nama Barang(F), Ongkir Dasar(G), Ongkir Final(H), Metode Bayar Ongkir(I), Amplop(J), Packing(K), Lainnya(L), Total Biaya(M), Metode Bayar Lainnya(N), Keterangan(O)
-  for (let i = 4; i < data.length; i++) {
-    const row = data[i];
-    let rowDate = "";
-    
-    if (row[0] instanceof Date) {
-      rowDate = Utilities.formatDate(row[0], Session.getScriptTimeZone(), "dd-MM-yyyy");
-    } else {
-      rowDate = String(row[0]).trim();
+  try {
+    const sheet = ss.getSheetByName("Resi Harian");
+    if (!sheet) {
+      return [];
     }
     
-    if (rowDate === targetDate) {
-      results.push({
-        tanggal: rowDate,
-        admin: String(row[1] || ""),
-        no: Number(row[2] || 0),
-        tipeProduk: String(row[3] || ""),
-        noResi: String(row[4] || "").trim(),
-        namaBarang: String(row[5] || ""),
-        ongkirDasar: parseNumeric(row[6]),
-        ongkirFinal: parseNumeric(row[7]),
-        metodeBayarOngkir: String(row[8] || "").trim(),
-        amplop: parseNumeric(row[9]),
-        packing: parseNumeric(row[10]),
-        lainnya: parseNumeric(row[11]),
-        totalBiaya: parseNumeric(row[12]),
-        metodeBayarLainnya: String(row[13] || ""),
-        keterangan: String(row[14] || "")
-      });
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 5) return []; // Skip Header J&T Pasir Jaha
+    
+    const results = [];
+    
+    for (let i = 4; i < data.length; i++) {
+      const row = data[i];
+      if (!row[0]) continue; // Lewati baris kosong
+      
+      let rowDate = "";
+      if (row[0] instanceof Date) {
+        rowDate = Utilities.formatDate(row[0], Session.getScriptTimeZone() || "GMT+7", "dd-MM-yyyy");
+      } else {
+        rowDate = String(row[0]).trim();
+      }
+      
+      if (rowDate === targetDate) {
+        results.push({
+          tanggal: rowDate,
+          admin: String(row[1] || ""),
+          no: Number(row[2] || 0),
+          tipeProduk: String(row[3] || ""),
+          noResi: String(row[4] || "").trim(),
+          namaBarang: String(row[5] || ""),
+          ongkirDasar: parseNumeric(row[6]),
+          ongkirFinal: parseNumeric(row[7]),
+          metodeBayarOngkir: String(row[8] || "").trim(),
+          amplop: parseNumeric(row[9]),
+          packing: parseNumeric(row[10]),
+          lainnya: parseNumeric(row[11]),
+          totalBiaya: parseNumeric(row[12]),
+          metodeBayarLainnya: String(row[13] || ""),
+          keterangan: String(row[14] || "")
+        });
+      }
     }
+    return results;
+  } catch (err) {
+    Logger.log("Error reading Resi Harian: " + err.toString());
+    return [];
   }
-  return results;
 }
 
 // Mengambil Data dari Sheet "Detail Serah Terima" untuk tanggal tertentu
 function getDetailSerahTerimaData(ss, targetDate) {
-  const sheet = ss.getSheetByName("Detail Serah Terima");
-  if (!sheet) return [];
-  
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-  
-  const results = [];
-  
-  // Kolom: No. Resi(B / index 1), Waktu pemesanan(D / index 3), Metode perhitungan(E / index 4)
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    let rowDate = "";
-    
-    const waktuRaw = row[3]; // Kolom D (Waktu pemesanan)
-    if (waktuRaw instanceof Date) {
-      rowDate = Utilities.formatDate(waktuRaw, Session.getScriptTimeZone(), "dd-MM-yyyy");
-    } else {
-      // String format, coba extract dd-MM-yyyy di depan
-      const match = String(waktuRaw).match(/\d{2}-\d{2}-\d{4}/);
-      rowDate = match ? match[0] : "";
+  try {
+    const sheet = ss.getSheetByName("Detail Serah Terima");
+    if (!sheet) {
+      return [];
     }
     
-    if (rowDate === targetDate && row[1]) {
-      results.push({
-        noResi: String(row[1]).trim(),
-        waktuPemesanan: waktuRaw instanceof Date ? Utilities.formatDate(waktuRaw, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss") : String(waktuRaw),
-        metodePerhitungan: String(row[4] || "").trim()
-      });
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return [];
+    
+    const results = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row[1]) continue; // Lewati baris kosong jika resi tidak ada
+      
+      let rowDate = "";
+      const waktuRaw = row[3]; // Kolom D (Waktu pemesanan)
+      
+      if (waktuRaw instanceof Date) {
+        rowDate = Utilities.formatDate(waktuRaw, Session.getScriptTimeZone() || "GMT+7", "dd-MM-yyyy");
+      } else {
+        const match = String(waktuRaw).match(/\d{2}-\d{2}-\d{4}/);
+        rowDate = match ? match[0] : "";
+      }
+      
+      if (rowDate === targetDate && row[1]) {
+        results.push({
+          noResi: String(row[1]).trim(),
+          waktuPemesanan: waktuRaw instanceof Date ? Utilities.formatDate(waktuRaw, Session.getScriptTimeZone() || "GMT+7", "yyyy-MM-dd HH:mm:ss") : String(waktuRaw),
+          metodePerhitungan: String(row[4] || "").trim()
+        });
+      }
     }
+    return results;
+  } catch (err) {
+    Logger.log("Error reading Detail Serah Terima: " + err.toString());
+    return [];
   }
-  return results;
 }
 
 function parseNumeric(val) {
   if (val === "" || val === undefined || val === null) return 0;
   if (typeof val === "number") return val;
-  // Ubah format Rupiah lokal "18.000" menjadi angka murni
   let str = String(val).replace(/[^0-9,-]/g, "");
   str = str.replace(",", ".");
   const num = parseFloat(str);
